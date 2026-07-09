@@ -1,0 +1,453 @@
+<meta charset="utf-8">
+<title>Turtle Lake Feedstock — Stores, Tonnage & Denali Outlet Gap</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{--green:#2B6E44;--dgreen:#1F4F31;--band:#EAF3EC;--ink:#1c2b22;--muted:#5b6b60;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--ink);background:#fbfdfb}
+  .wrap{max-width:1240px;margin:0 auto;padding:14px}
+  h1{font-size:18px;margin:0 0 2px}
+  .sub{font-size:12px;color:var(--muted);margin:0 0 12px}
+  #err{display:none;background:#fdecea;color:#8a1c12;border:1px solid #f3c6c0;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:10px}
+  .layout{display:flex;gap:14px;align-items:stretch;flex-wrap:wrap}
+  .mapcol{flex:2;min-width:440px}
+  #map{height:680px;border-radius:12px;border:1px solid #cfe0d5;background:#eef3ee}
+  .panel{flex:1;min-width:300px;display:flex;flex-direction:column;gap:12px}
+  .box{background:#fff;border:1px solid #dbe6de;border-radius:12px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .box h2{font-size:12px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em;color:var(--dgreen)}
+  .controls{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;align-items:center}
+  .btn{font-size:12px;padding:5px 11px;border:1px solid #cdddd2;background:#fff;border-radius:20px;cursor:pointer;color:var(--ink)}
+  .btn.on{background:var(--green);color:#fff}
+  .lab{font-size:11px;color:var(--muted);margin-right:2px}
+  .mini{display:flex;gap:6px}
+  .mini .btn{padding:3px 9px;font-size:11px}
+  .brands{display:flex;flex-direction:column;gap:2px}
+  .brow{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:3px 6px;border-radius:7px;cursor:pointer;user-select:none}
+  .brow:hover{background:var(--band)}
+  .brow.off{opacity:.36}
+  .brow .sw{width:12px;height:12px;border-radius:50%;flex:0 0 auto;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+  .brow .nm{flex:1}
+  .brow .ct{font-variant-numeric:tabular-nums;color:#6b7a70;font-size:11px}
+  .brow .solo{font-size:10px;color:#9aa8a0;border:1px solid #dbe6de;border-radius:10px;padding:0 6px;visibility:hidden}
+  .brow:hover .solo{visibility:visible}
+  .crow{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:5px 6px;border-radius:7px;cursor:pointer;user-select:none;border:1px solid transparent}
+  .crow:hover{background:var(--band)}
+  .crow.focus{border-color:var(--green);background:#f0f7f2}
+  .crow .rk{font-weight:700;color:var(--dgreen);width:20px;text-align:center;font-variant-numeric:tabular-nums}
+  .crow .sw{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
+  .crow .nm{flex:1;line-height:1.15}
+  .crow .nm small{color:#8a978e;font-size:10.5px}
+  .crow .ct{font-variant-numeric:tabular-nums;color:#33463b;font-weight:600;font-size:12px;width:30px;text-align:right}
+  .crow .tn{font-variant-numeric:tabular-nums;color:#B26A00;font-weight:700;font-size:11px;width:52px;text-align:right}
+  .foot{font-size:10.5px;color:var(--muted);margin-top:6px}
+  .kpi{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .kpi .k{background:var(--band);border-radius:9px;padding:6px 10px}
+  .kpi .k.t{background:#FCF1DF}.kpi .k.g{background:#E7F1FB}.kpi .k.n{background:#E6F2EA}
+  .kpi .k.n .v{color:#1F7A3D}
+  .legsec{font-size:10px;font-weight:700;letter-spacing:.03em;color:#8a978e;text-transform:uppercase;margin:7px 0 2px}
+  .kpi .k .v{font-size:16px;font-weight:700;color:var(--dgreen)}
+  .kpi .k.t .v{color:#B26A00}.kpi .k.g .v{color:#1D4E89}
+  .kpi .k .l{font-size:10px;color:var(--muted)}
+  .leaflet-popup-content{font-size:12px;line-height:1.4}
+  .leaflet-tooltip.zt{font-size:11.5px;line-height:1.5;max-width:240px;padding:7px 9px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  #detailBody .row{padding:2px 0;border-bottom:1px solid #f0f4f1}
+</style>
+
+<div class="wrap">
+  <h1>Feedstock Shed for Turtle Lake AD — Stores, Tonnage & the Denali-Outlet Gap</h1>
+  <p class="sub">Every dot is a grocery store (colored by brand). Zones are the nine density clusters, <b>ranked by store count</b> and <b>selectable</b>. Each zone shows estimated organic tonnage and its distance to Turtle Lake vs. Denali's current metro outlet (SMSC / Dakota Prairie Composting).</p>
+  <div id="err"></div>
+
+  <div class="kpi" id="kpi"></div>
+  <div class="controls">
+    <span class="lab">Heat:</span>
+    <button class="btn on" id="heat-stores">Store density</button>
+    <button class="btn" id="heat-pop">Population</button>
+    <button class="btn" id="heat-off">Off</button>
+    <span class="lab" style="margin-left:8px">Zones:</span>
+    <button class="btn on" id="b-zones">Show</button>
+    <button class="btn on" id="b-rings">Rings</button>
+    <span class="lab" style="margin-left:8px">Show:</span>
+    <button class="btn on" id="cat-all">All</button>
+    <button class="btn" id="cat-new">New opps</button>
+    <button class="btn" id="cat-den">Denali accounts</button>
+    <span class="lab" style="margin-left:8px">Brands:</span>
+    <div class="mini"><button class="btn" id="all-on">All</button><button class="btn" id="all-off">Clear</button></div>
+    <span class="lab" style="margin-left:8px">Units:</span>
+    <button class="btn on" id="u-tons">tons</button>
+    <button class="btn" id="u-lbs">lbs</button>
+    <span class="lab" style="margin-left:8px">Per:</span>
+    <button class="btn on" id="p-year">Year</button>
+    <button class="btn" id="p-month">Month</button>
+    <button class="btn" id="p-week">Week</button>
+  </div>
+
+  <div class="layout">
+    <div class="mapcol"><div id="map"></div>
+      <div class="foot">Tonnage = stores × ~150 t/yr organic waste (EPA/ReFED average; per-store range ~90–225). Of that, ~35–45% is the landfill/compost stream immediately divertible to AD; packaged product is added DePak upside. Super One = real scraped addresses; other brands placed at store cities.</div>
+    </div>
+    <div class="panel">
+      <div class="box">
+        <h2>Route clusters — ranked by store density</h2>
+        <div id="clusters"></div>
+        <div class="foot">Click a row to isolate that zone (click again to reset). Hover a zone on the map for its brand mix, tonnage, and Turtle&nbsp;Lake-vs-SMSC distance.</div>
+      </div>
+      <div class="box" id="detailBox" style="display:none">
+        <h2 id="detailTitle">Zone detail</h2>
+        <div id="detailBody"></div>
+      </div>
+      <div class="box">
+        <h2>Brands (click to toggle)</h2>
+        <div class="brands" id="legend"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+window.addEventListener('load', function(){
+try{
+const CENTER=[45.395,-92.137];
+const SMSC=[44.760,-93.620]; // SMSC / Dakota Prairie Composting, Shakopee MN (Denali metro outlet)
+const T_PER_STORE=150; // tons/yr organic waste generated per store (EPA/ReFED avg)
+const CO={
+"Minneapolis":[44.978,-93.265],"St. Paul":[44.954,-93.090],"Bloomington":[44.840,-93.298],
+"Brooklyn Park":[45.094,-93.356],"Plymouth":[45.010,-93.456],"Woodbury":[44.923,-92.959],
+"Maple Grove":[45.069,-93.457],"Blaine":[45.160,-93.235],"Lakeville":[44.650,-93.243],
+"Eagan":[44.822,-93.166],"Burnsville":[44.768,-93.277],"Eden Prairie":[44.854,-93.470],
+"Coon Rapids":[45.174,-93.303],"Apple Valley":[44.732,-93.218],"Minnetonka":[44.913,-93.503],
+"Edina":[44.890,-93.350],"St. Louis Park":[44.948,-93.348],"Shakopee":[44.798,-93.527],
+"Maplewood":[44.953,-92.995],"Cottage Grove":[44.828,-92.943],"Roseville":[45.007,-93.157],
+"Inver Grove Heights":[44.848,-93.043],"Hastings":[44.744,-92.852],"Forest Lake":[45.279,-92.985],
+"Stillwater":[45.056,-92.806],"North Branch":[45.511,-92.980],"Cambridge":[45.573,-93.224],
+"White Bear Lake":[45.084,-93.010],"Shoreview":[45.079,-93.147],"Richfield":[44.883,-93.283],
+"Wayzata":[44.974,-93.507],"Chanhassen":[44.862,-93.531],"Prior Lake":[44.713,-93.423],
+"Chaska":[44.789,-93.602],"Golden Valley":[45.000,-93.348],"New Hope":[45.038,-93.386],
+"Robbinsdale":[45.032,-93.339],"Oakdale":[44.963,-92.964],"Vadnais Heights":[45.058,-93.073],
+"Savage":[44.779,-93.336],"Excelsior":[44.903,-93.567],"Orono":[44.949,-93.596],
+"New Prague":[44.544,-93.577],"Spring Lake Park":[45.116,-93.238],"Little Canada":[45.026,-93.088],
+"Kasson":[44.030,-92.750],"Faribault":[44.295,-93.269],"Owatonna":[44.084,-93.226],
+"Northfield":[44.458,-93.161],"Red Wing":[44.563,-92.534],"Winona":[44.050,-91.639],
+"Austin":[43.667,-92.975],"Mankato":[44.164,-93.999],"New Ulm":[44.312,-94.460],
+"Rochester":[44.012,-92.480],"Plainview":[44.165,-92.172],"Spring Valley":[43.686,-92.388],
+"St. Charles":[43.969,-92.064],"St. Peter":[44.323,-93.958],"Stewartville":[43.856,-92.489],
+"Zumbrota":[44.294,-92.669],"St. Cloud":[45.560,-94.163],"Sartell":[45.622,-94.207],
+"Sauk Rapids":[45.591,-94.166],"Elk River":[45.304,-93.567],"Monticello":[45.306,-93.794],
+"Buffalo":[45.172,-93.874],"Willmar":[45.122,-95.043],"Hutchinson":[44.888,-94.369],
+"Waite Park":[45.557,-94.222],"Duluth":[46.786,-92.100],"Cloquet":[46.721,-92.459],
+"Hermantown":[46.800,-92.238],"Two Harbors":[47.026,-91.671],"Biwabik":[47.533,-92.339],
+"Virginia":[47.523,-92.537],"Hibbing":[47.427,-92.938],"Grand Rapids":[47.237,-93.530],
+"Deer River":[47.333,-93.792],"Crosby":[46.483,-93.957],"Brainerd":[46.358,-94.201],
+"Baxter":[46.343,-94.287],"Pequot Lakes":[46.603,-94.310],"Walker":[47.100,-94.587],
+"Barron":[45.401,-91.853],"Rice Lake":[45.506,-91.738],"Cameron":[45.412,-91.744],
+"Chetek":[45.314,-91.653],"Cumberland":[45.533,-92.019],"Amery":[45.307,-92.362],
+"Shell Lake":[45.729,-91.925],"Spooner":[45.822,-91.889],"New Richmond":[45.123,-92.537],
+"Hudson":[44.975,-92.757],"River Falls":[44.862,-92.624],"St. Croix Falls":[45.409,-92.637],
+"Hayward":[46.013,-91.485],"Ladysmith":[45.463,-91.106],"Baldwin":[45.001,-92.370],
+"Menomonie":[44.876,-91.919],"Eau Claire":[44.811,-91.499],"Chippewa Falls":[44.937,-91.393],
+"Altoona":[44.803,-91.442],"Superior":[46.720,-92.104],"Ashland":[46.592,-90.884],
+"Park Falls":[45.934,-90.442],"La Crosse":[43.801,-91.239],"Onalaska":[43.884,-91.237],
+"Black River Falls":[44.294,-90.851],"Tomah":[43.976,-90.504],"Wausau":[44.959,-89.630],
+"Stevens Point":[44.524,-89.575],"Marshfield":[44.669,-90.172],"Wisconsin Rapids":[44.384,-89.817],
+"Ironwood":[46.455,-90.171]
+};
+const CLU={};
+["Minneapolis","St. Paul","Bloomington","Brooklyn Park","Plymouth","Woodbury","Maple Grove","Blaine","Lakeville","Eagan","Burnsville","Eden Prairie","Coon Rapids","Apple Valley","Minnetonka","Edina","St. Louis Park","Shakopee","Maplewood","Cottage Grove","Roseville","Inver Grove Heights","Hastings","Forest Lake","Stillwater","North Branch","Cambridge","White Bear Lake","Shoreview","Richfield","Wayzata","Chanhassen","Prior Lake","Chaska","Golden Valley","New Hope","Robbinsdale","Oakdale","Vadnais Heights","Savage","Excelsior","Orono","New Prague","Spring Lake Park","Little Canada"].forEach(c=>CLU[c]="metro");
+["Barron","Rice Lake","Cameron","Chetek","Cumberland","Amery","Shell Lake","Spooner","New Richmond","Hudson","River Falls","St. Croix Falls","Hayward","Ladysmith","Baldwin"].forEach(c=>CLU[c]="wwi");
+["Menomonie","Eau Claire","Chippewa Falls","Altoona"].forEach(c=>CLU[c]="ec");
+["St. Cloud","Sartell","Sauk Rapids","Elk River","Monticello","Buffalo","Willmar","Hutchinson","Waite Park"].forEach(c=>CLU[c]="stc");
+["Duluth","Superior","Cloquet","Hermantown","Two Harbors","Ashland","Park Falls"].forEach(c=>CLU[c]="duluth");
+["Rochester","Owatonna","Faribault","Northfield","Red Wing","Winona","Austin","Mankato","New Ulm","Kasson","Plainview","Spring Valley","St. Charles","St. Peter","Stewartville","Zumbrota"].forEach(c=>CLU[c]="roch");
+["La Crosse","Onalaska","Black River Falls","Tomah"].forEach(c=>CLU[c]="lax");
+["Wausau","Stevens Point","Marshfield","Wisconsin Rapids"].forEach(c=>CLU[c]="wausau");
+["Brainerd","Baxter","Grand Rapids","Hibbing","Virginia","Crosby","Deer River","Biwabik","Pequot Lakes","Walker","Ironwood"].forEach(c=>CLU[c]="iron");
+const CLNAME={metro:"Twin Cities Metro",wwi:"Western-WI Corridor",ec:"Eau Claire–Chippewa",stc:"St. Cloud–Central MN",duluth:"Duluth–Superior",roch:"Rochester / S. MN",lax:"La Crosse",wausau:"Wausau–Central WI",iron:"Brainerd–Iron Range"};
+const CLDIR={metro:"SW 60–95 mi",wwi:"W/SW 13–55 mi",ec:"SE 50–72 mi",stc:"W 90–120 mi",duluth:"N 85–120 mi",roch:"S 120–150 mi",lax:"SE ~130 mi",wausau:"E ~140 mi",iron:"N/NE 110–150 mi"};
+const CLCOL={metro:"#2563EB",wwi:"#DC2626",ec:"#7C3AED",stc:"#0D9488",duluth:"#0891B2",roch:"#D97706",lax:"#DB2777",wausau:"#65A30D",iron:"#475569"};
+
+const BR=[
+ ["cub","Cub Foods","#0C4DA2"],["hyvee","Hy-Vee","#E01F26"],["lb","Lunds & Byerlys","#6A2C91"],
+ ["kow","Kowalski's","#009688"],["ft","Fresh Thyme","#6FBF44"],["jerry","Jerry's Foods","#F0A202"],
+ ["s1","Super One","#EF6C00"],["fest","Festival Foods","#D81B60"],["cob","Coborn's / Cash Wise","#00ACC1"],
+ ["mkt","Marketplace Foods","#795548"],["know","Knowlan's","#607D8B"],["coop","Food co-ops","#33691E"]];
+const BRNAME={}; BR.forEach(b=>BRNAME[b[0]]=b[1]); const BRCOL={}; BR.forEach(b=>BRCOL[b[0]]=b[2]);
+// Accounts Denali is already in conversations with (hollow ring); the rest are new opportunities (solid)
+const DEN={hyvee:1,ft:1,cub:1,fest:1,know:1};
+function isDen(b){return !!DEN[b];}
+
+const S1=[["Kenwood","Duluth","1316 W Arrowhead Rd"],["Plaza","Duluth","15 S 13th Ave E"],
+ ["Woodland Marketplace","Duluth","4020 Woodland Ave"],["Miller Hill","Duluth","5401 Burning Tree Rd"],
+ ["Lakeside","Duluth","5928 E Superior St"],["West","Duluth","5300 Bristol St"],
+ ["Pike Lake","Duluth","5698 Miller Trunk Hwy"],["Oakes Ave","Superior","1515 Oakes Ave"],
+ ["Harbor View","Superior","2202 E 2nd St"],["Cloquet","Cloquet","707 Hwy 33 S"],
+ ["Two Harbors","Two Harbors","802 11th St"],["Biwabik","Biwabik","317 Main St"],
+ ["Virginia South","Virginia","1111 17th St S"],["Virginia North","Virginia","601 4th St N"],
+ ["Hibbing","Hibbing","1101 E 37th St"],["Ashland","Ashland","401 Ellis Ave"],
+ ["Grand Rapids South","Grand Rapids","2410 S Pokegama Ave"],["Grand Rapids North","Grand Rapids","503 NW 4th St"],
+ ["Deer River","Deer River","201 Main Ave E"],["Crosby","Crosby","22418 State Hwy 6"],
+ ["Park Falls","Park Falls","1347 4th Ave S"],["Brainerd","Brainerd","417 8th Ave NE"],
+ ["Pequot Lakes","Pequot Lakes","30581 Patriot Ave"],["Baxter","Baxter","7895 Excelsior Rd"],
+ ["Walker","Walker","205 8th St S"],["Ironwood","Ironwood","1480 E Cloverland Dr"]];
+const BC={
+ cub:[["Minneapolis",6],["St. Paul",5],["Bloomington",2],["Brooklyn Park",2],["Plymouth",2],["Maple Grove",2],["Blaine",2],["Coon Rapids",2],["Burnsville",2],["Eagan",2],["Apple Valley",1],["Edina",1],["St. Louis Park",2],["Roseville",1],["Maplewood",1],["Woodbury",2],["Inver Grove Heights",1],["Shakopee",1],["Savage",1],["Hastings",1],["Forest Lake",1],["Stillwater",1],["White Bear Lake",1],["New Hope",1],["Richfield",1],["Minnetonka",1],["Elk River",1],["Monticello",1],["Buffalo",1],["Cambridge",1],["Rochester",2],["Mankato",1],["Owatonna",1],["Faribault",1],["Northfield",1],["Red Wing",1],["Winona",1],["New Ulm",1],["Hutchinson",1],["Willmar",1],["Brainerd",1],["Duluth",2],["Hermantown",1]],
+ hyvee:[["Rochester",4],["Mankato",2],["Brooklyn Park",1],["Cottage Grove",1],["Eagan",1],["Faribault",1],["Kasson",1],["Lakeville",1],["Maple Grove",1],["Maplewood",1],["New Hope",1],["New Prague",1],["New Ulm",1],["Oakdale",1],["Owatonna",1],["Plainview",1],["Plymouth",1],["Robbinsdale",1],["Savage",1],["Shakopee",1],["Spring Lake Park",1],["Spring Valley",1],["St. Charles",1],["St. Peter",1],["Stewartville",1],["Winona",1],["Zumbrota",1],["Austin",1],["Eau Claire",1],["La Crosse",1]],
+ lb:[["Minneapolis",3],["St. Paul",1],["Edina",2],["Bloomington",1],["Eagan",1],["Wayzata",1],["Minnetonka",1],["Plymouth",1],["Maple Grove",1],["Richfield",1],["Roseville",1],["St. Louis Park",1],["Burnsville",1],["Apple Valley",1],["Chanhassen",1],["Eden Prairie",1],["Prior Lake",1],["Golden Valley",1],["Orono",1],["White Bear Lake",1],["Woodbury",1],["St. Cloud",1],["Chaska",1]],
+ kow:[["Woodbury",1],["White Bear Lake",1],["Shoreview",1],["St. Paul",1],["Eagan",1],["Minneapolis",3],["Edina",1],["Eden Prairie",1],["Excelsior",1]],
+ ft:[["Vadnais Heights",1],["Minneapolis",1],["St. Louis Park",1],["Plymouth",1],["Bloomington",1],["Savage",1],["Apple Valley",1],["Waite Park",1]],
+ jerry:[["Edina",1],["Eden Prairie",1],["Woodbury",1],["North Branch",1],["Hudson",1],["Wausau",1]],
+ fest:[["Hudson",1],["Eau Claire",3],["Chippewa Falls",1],["La Crosse",2],["Onalaska",1],["Wausau",2],["Stevens Point",1],["Marshfield",1],["Wisconsin Rapids",1],["Tomah",1]],
+ cob:[["St. Cloud",2],["Sartell",1],["Sauk Rapids",1],["Elk River",1],["Monticello",1],["Buffalo",1],["Willmar",1],["Hutchinson",1],["Brainerd",1],["Baxter",1]],
+ mkt:[["Rice Lake",1],["St. Croix Falls",1],["Menomonie",1],["Hayward",1]],
+ know:[["Vadnais Heights",1],["Maplewood",1],["White Bear Lake",1],["Little Canada",1],["St. Paul",2],["Cottage Grove",1],["Oakdale",1]],
+ coop:[["St. Paul",3],["Minneapolis",4],["Minnetonka",1],["Chanhassen",1],["Burnsville",1],["Northfield",1],["La Crosse",1],["Duluth",2],["Menomonie",1]]
+};
+const POP=[["Rice Lake",45.506,-91.738,8977],["Hudson",44.975,-92.757,14755],["River Falls",44.862,-92.624,16182],["New Richmond",45.123,-92.537,10013],["Menomonie",44.876,-91.919,16843],["Eau Claire",44.811,-91.499,69421],["Chippewa Falls",44.937,-91.393,14731],["Minneapolis",44.978,-93.265,429954],["St. Paul",44.954,-93.090,311527],["Bloomington",44.840,-93.298,89987],["Brooklyn Park",45.094,-93.356,86478],["Plymouth",45.010,-93.456,81026],["Woodbury",44.923,-92.959,75102],["Maple Grove",45.069,-93.457,70253],["Blaine",45.160,-93.235,70222],["Lakeville",44.650,-93.243,69490],["Eagan",44.822,-93.166,68855],["Burnsville",44.768,-93.277,64317],["Eden Prairie",44.854,-93.470,64198],["Coon Rapids",45.174,-93.303,63599],["Apple Valley",44.732,-93.218,56374],["Minnetonka",44.913,-93.503,53781],["Edina",44.890,-93.350,53494],["St. Louis Park",44.948,-93.348,50010],["Shakopee",44.798,-93.527,43698],["Maplewood",44.953,-92.995,42088],["Cottage Grove",44.828,-92.943,41054],["Stillwater",45.056,-92.806,19394],["Forest Lake",45.279,-92.985,21000],["St. Cloud",45.560,-94.163,68881],["Sartell",45.622,-94.207,20000],["Elk River",45.304,-93.567,26000],["Willmar",45.122,-95.043,21000],["Duluth",46.786,-92.100,87483],["Superior",46.720,-92.104,26751],["Cloquet",46.721,-92.459,12554],["Rochester",44.012,-92.480,122330],["Owatonna",44.084,-93.226,26420],["Faribault",44.295,-93.269,24430],["Mankato",44.164,-93.999,44488],["Winona",44.050,-91.639,25948],["Austin",43.667,-92.975,26174],["La Crosse",43.801,-91.239,52680],["Onalaska",43.884,-91.237,18803],["Wausau",44.959,-89.630,39994],["Stevens Point",44.524,-89.575,25666],["Marshfield",44.669,-90.172,18929],["Brainerd",46.358,-94.201,13590],["Grand Rapids",47.237,-93.530,11126],["Hibbing",47.427,-92.938,16214]];
+const POPMAXSQRT=Math.max.apply(null,POP.map(p=>Math.sqrt(p[3])));
+
+function hav(a,b,c,d){const R=3958.8,r=Math.PI/180;const dφ=(c-a)*r,dλ=(d-b)*r;
+ const x=Math.sin(dφ/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(dλ/2)**2;return 2*R*Math.asin(Math.sqrt(x));}
+
+let stores=[];
+S1.forEach(s=>{const co=CO[s[1]];if(co)stores.push({brand:"s1",label:s[0],city:s[1],addr:s[2],clat:co[0],clon:co[1],real:true});});
+Object.keys(BC).forEach(bk=>BC[bk].forEach(([city,n])=>{const co=CO[city];if(!co)return;
+  for(let i=0;i<n;i++)stores.push({brand:bk,label:city,city:city,addr:null,clat:co[0],clon:co[1],real:false});}));
+const byCity={};stores.forEach(s=>{(byCity[s.city]=byCity[s.city]||[]).push(s);});
+Object.values(byCity).forEach(list=>{list.forEach((s,k)=>{
+  if(list.length===1){s.lat=s.clat;s.lon=s.clon;return;}
+  const ring=Math.floor(k/8),idx=k%8,rad=0.006+0.008*ring,ang=(idx/8)*2*Math.PI+ring*0.7;
+  s.lat=s.clat+rad*Math.cos(ang);s.lon=s.clon+rad*Math.sin(ang)/Math.cos(s.clat*Math.PI/180);});});
+stores.forEach(s=>{s.dist=hav(CENTER[0],CENTER[1],s.lat,s.lon);s.cl=CLU[s.city]||"iron";});
+const inR=stores.filter(s=>s.dist<=155);
+
+const order=["metro","wwi","ec","stc","duluth","roch","lax","wausau","iron"];
+const cldata={};
+order.forEach(k=>{
+  const pts=inR.filter(s=>s.cl===k);
+  const cLat=pts.reduce((a,s)=>a+s.lat,0)/pts.length, cLon=pts.reduce((a,s)=>a+s.lon,0)/pts.length;
+  const bc={}; pts.forEach(s=>bc[s.brand]=(bc[s.brand]||0)+1);
+  cldata[k]={n:pts.length,cLat:cLat,cLon:cLon,pts:pts,bc:bc,tons:pts.length*T_PER_STORE,
+    dTL:hav(CENTER[0],CENTER[1],cLat,cLon), dSM:hav(SMSC[0],SMSC[1],cLat,cLon)};
+});
+const ranked=order.slice().sort((a,b)=>cldata[b].n-cldata[a].n);
+ranked.forEach((k,i)=>cldata[k].rank=i+1);
+
+function hull(latlngs){
+  if(latlngs.length<3) return latlngs.slice();
+  let p=latlngs.map(x=>[x[1],x[0]]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lo=[];for(const q of p){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],q)<=0)lo.pop();lo.push(q);}
+  const up=[];for(let i=p.length-1;i>=0;i--){const q=p[i];while(up.length>=2&&cr(up[up.length-2],up[up.length-1],q)<=0)up.pop();up.push(q);}
+  lo.pop();up.pop();return lo.concat(up).map(x=>[x[1],x[0]]);
+}
+order.forEach(k=>{const d=cldata[k];
+  const h=hull(d.pts.map(s=>[s.lat,s.lon]));
+  d.hull=h.map(pt=>[d.cLat+(pt[0]-d.cLat)*1.14,d.cLon+(pt[1]-d.cLon)*1.14]);
+  d.maxR=Math.max.apply(null,d.pts.map(s=>hav(d.cLat,d.cLon,s.lat,s.lon)));});
+const totTons=order.reduce((a,k)=>a+cldata[k].tons,0);
+const clCloserTL=order.filter(k=>cldata[k].dTL<cldata[k].dSM).length;
+const newStores=inR.filter(s=>!isDen(s.brand)).length;
+const newTons=newStores*T_PER_STORE;
+function catMatch(b){return catFilter==='all'||(catFilter==='new'&&!isDen(b))||(catFilter==='den'&&isDen(b));}
+
+function kt(t){return t>=1000?(t/1000).toFixed(t>=10000?0:1)+'k':t;}
+function abbrNum(n){if(n>=1e6)return (n/1e6).toFixed(n>=1e7?0:1)+'M';if(n>=1e3)return (n/1e3).toFixed(n>=1e4?0:1)+'k';return Math.round(n).toLocaleString();}
+function wVal(annualTons){return annualTons*(unit==='lbs'?2000:1)/({year:1,month:12,week:52}[period]);}
+function uSuf(){return (unit==='lbs'?'lb':'t')+'/'+({year:'yr',month:'mo',week:'wk'}[period]);}
+function wFull(annualTons){return Math.round(wVal(annualTons)).toLocaleString()+' '+uSuf();}
+function wAbbr(annualTons){return abbrNum(wVal(annualTons))+' '+uSuf();}
+
+// ---- map ----
+const map=L.map('map',{scrollWheelZoom:true}).setView(CENTER,7);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'© OpenStreetMap © CARTO'}).addTo(map);
+map.createPane('heat');const hp=map.getPane('heat');hp.style.zIndex=350;hp.style.pointerEvents='none';
+map.createPane('zones');map.getPane('zones').style.zIndex=360;
+const M2=1609.34;
+const latOff=155/69.0,lonOff=155/(69.0*Math.cos(CENTER[0]*Math.PI/180));
+const FULLB=[[CENTER[0]-latOff,CENTER[1]-lonOff],[CENTER[0]+latOff,CENTER[1]+lonOff]];
+map.fitBounds(FULLB,{padding:[8,8]});
+
+let ringLayer=L.layerGroup().addTo(map);
+function drawRings(){ringLayer.clearLayers();
+  [50,100,150].forEach(mi=>{
+    L.circle(CENTER,{radius:mi*M2,fill:false,color:'#2f4a3a',weight:mi===150?2:1,dashArray:'6 6',opacity:.42}).addTo(ringLayer);
+    L.marker([CENTER[0]+mi/69.0,CENTER[1]],{interactive:false,icon:L.divIcon({className:'',
+      html:'<div style="font:600 10px sans-serif;color:#2f4a3a;background:rgba(255,255,255,.7);padding:0 3px;border-radius:3px">'+mi+' mi</div>',
+      iconSize:[40,14],iconAnchor:[20,7]})}).addTo(ringLayer);});}
+// Turtle Lake (destination) + SMSC (Denali metro outlet)
+L.marker(CENTER,{zIndexOffset:1000,icon:L.divIcon({className:'',iconSize:[170,34],iconAnchor:[85,17],
+  html:'<div style="display:flex;flex-direction:column;align-items:center">'+
+   '<div style="width:16px;height:16px;background:#1F4F31;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div>'+
+   '<div style="font:700 10px sans-serif;color:#12261b;background:rgba(255,255,255,.85);padding:1px 4px;border-radius:4px;margin-top:1px;white-space:nowrap">VIRESCO AD — Turtle Lake</div></div>'})}).addTo(map);
+L.marker(SMSC,{zIndexOffset:900,icon:L.divIcon({className:'',iconSize:[210,30],iconAnchor:[105,15],
+  html:'<div style="display:flex;flex-direction:column;align-items:center">'+
+   '<div style="width:13px;height:13px;background:#7A3E12;transform:rotate(45deg);border:2px solid #fff;box-shadow:0 0 0 1px #7A3E12"></div>'+
+   '<div style="font:700 9.5px sans-serif;color:#7A3E12;background:rgba(255,255,255,.85);padding:1px 4px;border-radius:4px;margin-top:2px;white-space:nowrap">SMSC / Dakota Prairie — Denali metro outlet</div></div>'})}).addTo(map)
+   .bindPopup('<b>SMSC / Dakota Prairie Composting</b><br>Shakopee, MN — a current Denali disposal outlet.<br><i>Compost only (no RNG), SW-metro location, capacity-constrained.</i>');
+
+// zones
+let zoneLayer=L.layerGroup().addTo(map);
+function brandLines(k){const d=cldata[k];
+  return Object.keys(d.bc).map(b=>[BRNAME[b],d.bc[b],BRCOL[b]]).sort((a,b)=>b[1]-a[1]);}
+function distLine(k){const d=cldata[k];const adv=d.dSM-d.dTL;
+  return 'Turtle Lake: <b>'+d.dTL.toFixed(0)+' mi</b> · SMSC: <b>'+d.dSM.toFixed(0)+' mi</b>'+
+    (adv>3?' <span style="color:#1F7A3D">(TL '+adv.toFixed(0)+' mi closer)</span>':adv<-3?' <span style="color:#B23A1E">(SMSC '+(-adv).toFixed(0)+' mi closer)</span>':'');}
+function zoneTip(k){const d=cldata[k];
+  return '<div style="font-weight:700;margin-bottom:3px;color:#12261b">#'+d.rank+' '+CLNAME[k]+' — '+d.n+' stores</div>'+
+    brandLines(k).map(x=>'<div><span style="color:'+x[2]+'">●</span> '+x[0]+': <b>'+x[1]+'</b></div>').join('')+
+    '<div style="margin-top:4px;color:#B26A00;font-weight:700">≈ '+wFull(d.tons)+' organics</div>'+
+    '<div style="margin-top:2px">'+distLine(k)+'</div>';}
+function drawZones(){
+  zoneLayer.clearLayers(); if(!showZones)return;
+  order.forEach(k=>{const d=cldata[k], foc=(focus===k), col=CLCOL[k];
+    const style={color:col,weight:foc?3.5:1.8,fillColor:col,fillOpacity:foc?.16:.08,pane:'zones'};
+    let shape;
+    if(d.pts.length>=3) shape=L.polygon(d.hull,style);
+    else shape=L.circle([d.cLat,d.cLon],Object.assign({radius:Math.max(d.maxR,6)*M2},style));
+    shape.on('click',()=>toggleFocus(k));
+    shape.bindTooltip(zoneTip(k),{sticky:true,direction:'top',opacity:0.97,className:'zt'});
+    zoneLayer.addLayer(shape);
+    L.marker([d.cLat,d.cLon],{interactive:false,pane:'zones',icon:L.divIcon({className:'',iconSize:[150,16],iconAnchor:[75,8],
+      html:'<div style="font:700 10px sans-serif;color:'+col+';background:rgba(255,255,255,.74);padding:0 4px;border-radius:4px;white-space:nowrap;text-align:center">#'+d.rank+' '+CLNAME[k]+' · ~'+wAbbr(d.tons)+'</div>'})}).addTo(zoneLayer);
+  });
+}
+
+// heat
+const heatCanvas=L.DomUtil.create('canvas','',hp);const hctx=heatCanvas.getContext('2d');
+const palette=(function(){const c=document.createElement('canvas');c.width=1;c.height=256;const g=c.getContext('2d');
+  const lg=g.createLinearGradient(0,0,0,256);lg.addColorStop(0,'rgba(43,110,68,0)');lg.addColorStop(.3,'#2B6E44');
+  lg.addColorStop(.6,'#7FB84F');lg.addColorStop(.8,'#F2C14E');lg.addColorStop(1,'#E8703A');
+  g.fillStyle=lg;g.fillRect(0,0,1,256);return g.getImageData(0,0,1,256).data;})();
+function drawHeat(){
+  if(heatMode==='off'){heatCanvas.style.display='none';return;}heatCanvas.style.display='';
+  const size=map.getSize();heatCanvas.width=size.x;heatCanvas.height=size.y;
+  L.DomUtil.setPosition(heatCanvas,map.containerPointToLayerPoint([0,0]));
+  hctx.clearRect(0,0,size.x,size.y);
+  const r=Math.max(20,28*Math.pow(2,map.getZoom()-7));
+  let pts;
+  if(heatMode==='pop')pts=POP.map(p=>({lat:p[1],lon:p[2],w:Math.min(1,Math.sqrt(p[3])/POPMAXSQRT)}));
+  else pts=inR.filter(s=>vto[s.brand]&&(!focus||s.cl===focus)&&catMatch(s.brand)).map(s=>({lat:s.lat,lon:s.lon,w:0.5}));
+  pts.forEach(pt=>{const p=map.latLngToContainerPoint([pt.lat,pt.lon]);
+    if(p.x<-r||p.y<-r||p.x>size.x+r||p.y>size.y+r)return;
+    const g=hctx.createRadialGradient(p.x,p.y,0,p.x,p.y,r);
+    g.addColorStop(0,'rgba(0,0,0,'+pt.w+')');g.addColorStop(1,'rgba(0,0,0,0)');
+    hctx.fillStyle=g;hctx.beginPath();hctx.arc(p.x,p.y,r,0,6.2832);hctx.fill();});
+  const img=hctx.getImageData(0,0,size.x,size.y),d=img.data;
+  for(let i=0;i<d.length;i+=4){const al=d[i+3];if(al===0)continue;const o=al*4;
+    d[i]=palette[o];d[i+1]=palette[o+1];d[i+2]=palette[o+2];d[i+3]=Math.min(210,al+25);}
+  hctx.putImageData(img,0,0);
+}
+map.on('moveend zoomend resize',drawHeat);
+map.on('zoomstart',()=>heatCanvas.style.visibility='hidden');
+map.on('zoomend',()=>heatCanvas.style.visibility='visible');
+
+// state
+let heatMode='stores',showRings=true,showZones=true,focus=null,catFilter='all',unit='tons',period='year';
+const vto={};BR.forEach(b=>vto[b[0]]=true);
+let markerLayer=L.layerGroup().addTo(map);
+function drawStores(){
+  markerLayer.clearLayers();
+  inR.forEach(s=>{ if(!vto[s.brand])return; if(focus&&s.cl!==focus)return; if(!catMatch(s.brand))return;
+    const den=isDen(s.brand);
+    const m=L.circleMarker([s.lat,s.lon],{radius:5,
+      color: den? BRCOL[s.brand] : '#ffffff',
+      weight: den? 2.4 : 1,
+      fillColor: den? '#ffffff' : BRCOL[s.brand],
+      fillOpacity: den? .92 : .95});
+    m.bindPopup('<b>'+BRNAME[s.brand]+'</b> — '+s.city+(s.label&&s.label!==s.city?' ('+s.label+')':'')+'<br>'+
+      '<span style="color:'+(den?'#7A3E12':'#1F7A3D')+';font-weight:700">'+(den?'Denali account (in conversations)':'New opportunity')+'</span><br>'+
+      (s.real? s.addr+', '+s.city : '<i>store-city placement · exact address pending</i>')+'<br>'+
+      s.dist.toFixed(0)+' mi to Turtle Lake · '+CLNAME[s.cl]);
+    markerLayer.addLayer(m);});
+}
+
+// panels
+function paintClusters(){
+  document.getElementById('clusters').innerHTML=ranked.map(k=>{const d=cldata[k];
+    return '<div class="crow'+(focus===k?' focus':'')+'" data-cl="'+k+'">'+
+      '<span class="rk">'+d.rank+'</span><span class="sw" style="background:'+CLCOL[k]+'"></span>'+
+      '<span class="nm">'+CLNAME[k]+'<br><small>'+CLDIR[k]+'</small></span>'+
+      '<span class="ct">'+d.n+'</span><span class="tn">~'+abbrNum(wVal(d.tons))+' '+(unit==='lbs'?'lb':'t')+'</span></div>';}).join('');
+  document.querySelectorAll('.crow').forEach(row=>row.onclick=()=>toggleFocus(row.dataset.cl));
+}
+function paintLegend(){
+  const counts={};BR.forEach(b=>counts[b[0]]=0);inR.forEach(s=>counts[s.brand]++);
+  function row(k){const b=BR.find(x=>x[0]===k),den=isDen(k);
+    const sw=den?('background:#fff;border:2.4px solid '+b[2]):('background:'+b[2]+';border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)');
+    return '<div class="brow'+(vto[k]?'':' off')+'" data-b="'+k+'"><span class="sw" style="'+sw+'"></span>'+
+      '<span class="nm">'+b[1]+(k==="s1"?' ✓':'')+'</span><span class="ct">'+counts[k]+'</span>'+
+      '<span class="solo" data-solo="'+k+'">solo</span></div>';}
+  const newB=BR.filter(b=>!isDen(b[0])).map(b=>b[0]), denB=BR.filter(b=>isDen(b[0])).map(b=>b[0]);
+  document.getElementById('legend').innerHTML=
+    '<div class="legsec">● New opportunities</div>'+newB.map(row).join('')+
+    '<div class="legsec">◯ Already with Denali</div>'+denB.map(row).join('');
+  document.querySelectorAll('.brow').forEach(row=>{row.onclick=function(e){
+    if(e.target.dataset.solo){const s=e.target.dataset.solo;BR.forEach(b=>vto[b[0]]=(b[0]===s));}
+    else{const k=row.dataset.b;vto[k]=!vto[k];}refresh();};});
+}
+function paintDetail(){
+  const box=document.getElementById('detailBox');
+  if(!focus){box.style.display='none';return;}
+  const d=cldata[focus];
+  const dn=d.pts.filter(s=>isDen(s.brand)).length, nw=d.n-dn;
+  document.getElementById('detailTitle').textContent='#'+d.rank+'  '+CLNAME[focus]+'  —  '+d.n+' stores';
+  let html='<div style="font-size:12px;margin-bottom:6px"><b style="color:#B26A00">≈ '+wFull(d.tons)+'</b> est. organics · '+distLine(focus)+'</div>';
+  html+='<div style="font-size:11.5px;margin-bottom:8px;padding:5px 7px;background:#f4f8f5;border-radius:7px">'+
+    '<span style="color:#1F7A3D;font-weight:700">● New opp:</span> '+nw+' stores (~'+wAbbr(nw*T_PER_STORE)+') &nbsp;·&nbsp; '+
+    '<span style="color:#7A3E12;font-weight:700">◯ Denali:</span> '+dn+' stores (~'+wAbbr(dn*T_PER_STORE)+')</div>';
+  html+='<div style="display:flex;flex-wrap:wrap;gap:3px 12px;margin-bottom:8px">'+
+    brandLines(focus).map(x=>'<span style="font-size:12px"><span style="color:'+x[2]+'">●</span> <b>'+x[0]+'</b>: '+x[1]+'</span>').join('')+'</div>';
+  const list=d.pts.slice().sort((a,b)=>BRNAME[a.brand].localeCompare(BRNAME[b.brand])||a.city.localeCompare(b.city));
+  html+='<div style="max-height:220px;overflow:auto;font-size:11.5px">'+
+    list.map(s=>'<div class="row"><span style="color:'+BRCOL[s.brand]+'">●</span> <b>'+BRNAME[s.brand]+'</b> — '+s.city+(s.real?' · '+s.addr:'')+'</div>').join('')+'</div>';
+  document.getElementById('detailBody').innerHTML=html; box.style.display='';
+}
+function paintKpi(){
+  const shown=inR.filter(s=>vto[s.brand]&&(!focus||s.cl===focus)&&catMatch(s.brand)).length;
+  document.getElementById('kpi').innerHTML=
+   '<div class="k"><div class="v">'+shown+'</div><div class="l">stores shown</div></div>'+
+   '<div class="k t"><div class="v">~'+abbrNum(wVal(totTons))+'</div><div class="l">total est. '+uSuf()+'</div></div>'+
+   '<div class="k n"><div class="v">~'+abbrNum(wVal(newTons))+'</div><div class="l">new-opportunity '+uSuf()+'</div></div>'+
+   '<div class="k g"><div class="v">'+clCloserTL+'/9</div><div class="l">zones closer to Turtle Lake than SMSC</div></div>';
+}
+function toggleFocus(k){
+  focus=(focus===k)?null:k;
+  if(focus){const d=cldata[k];
+    if(d.pts.length>=2){const lats=d.pts.map(s=>s.lat),lons=d.pts.map(s=>s.lon);
+      map.fitBounds([[Math.min.apply(null,lats),Math.min.apply(null,lons)],[Math.max.apply(null,lats),Math.max.apply(null,lons)]],{padding:[40,40],maxZoom:11});}
+    else map.setView([d.cLat,d.cLon],10);
+  } else map.fitBounds(FULLB,{padding:[8,8]});
+  refresh();
+}
+function refresh(){drawStores();drawZones();drawHeat();paintClusters();paintLegend();paintKpi();paintDetail();}
+
+function setHeat(mode,btn){heatMode=mode;['heat-stores','heat-pop','heat-off'].forEach(id=>document.getElementById(id).classList.remove('on'));btn.classList.add('on');drawHeat();}
+document.getElementById('heat-stores').onclick=function(){setHeat('stores',this);};
+document.getElementById('heat-pop').onclick=function(){setHeat('pop',this);};
+document.getElementById('heat-off').onclick=function(){setHeat('off',this);};
+document.getElementById('b-zones').onclick=function(){showZones=!showZones;this.classList.toggle('on',showZones);drawZones();};
+function setCat(c,btn){catFilter=c;['cat-all','cat-new','cat-den'].forEach(id=>document.getElementById(id).classList.remove('on'));btn.classList.add('on');refresh();}
+document.getElementById('cat-all').onclick=function(){setCat('all',this);};
+document.getElementById('cat-new').onclick=function(){setCat('new',this);};
+document.getElementById('cat-den').onclick=function(){setCat('den',this);};
+document.getElementById('b-rings').onclick=function(){showRings=!showRings;this.classList.toggle('on',showRings);showRings?drawRings():ringLayer.clearLayers();};
+document.getElementById('all-on').onclick=function(){BR.forEach(b=>vto[b[0]]=true);refresh();};
+document.getElementById('all-off').onclick=function(){BR.forEach(b=>vto[b[0]]=false);refresh();};
+function setUnit(u,btn){unit=u;['u-tons','u-lbs'].forEach(id=>document.getElementById(id).classList.remove('on'));btn.classList.add('on');refresh();}
+document.getElementById('u-tons').onclick=function(){setUnit('tons',this);};
+document.getElementById('u-lbs').onclick=function(){setUnit('lbs',this);};
+function setPeriod(p,btn){period=p;['p-year','p-month','p-week'].forEach(id=>document.getElementById(id).classList.remove('on'));btn.classList.add('on');refresh();}
+document.getElementById('p-year').onclick=function(){setPeriod('year',this);};
+document.getElementById('p-month').onclick=function(){setPeriod('month',this);};
+document.getElementById('p-week').onclick=function(){setPeriod('week',this);};
+
+const leg=L.control({position:'bottomright'});
+leg.onAdd=function(){const d=L.DomUtil.create('div');d.style.cssText='background:rgba(255,255,255,.92);padding:6px 8px;border-radius:7px;font-size:10.5px;line-height:1.6;box-shadow:0 1px 4px rgba(0,0,0,.2)';
+  d.innerHTML='<b>Facilities</b><br><span style="color:#1F4F31">★</span> VIRESCO AD (Turtle Lake) — destination<br><span style="color:#7A3E12">◆</span> SMSC — Denali metro outlet (compost)<br><span style="border-bottom:2px dashed #2f4a3a;display:inline-block;width:14px"></span> 50/100/150-mi rings';return d;};
+leg.addTo(map);
+
+drawRings();refresh();
+map.whenReady(function(){setTimeout(drawHeat,150);});
+}catch(err){var e=document.getElementById('err');if(e){e.style.display='block';e.textContent='Map error: '+(err&&err.message?err.message:err);}console.error(err);}
+});
+</script>
