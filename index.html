@@ -297,7 +297,8 @@ function wAbbr(annualTons){return abbrNum(wVal(annualTons))+' '+uSuf();}
 
 // ---- map ----
 const map=L.map('map',{scrollWheelZoom:true}).setView(CENTER,7);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20,attribution:'© OpenStreetMap, © CARTO'}).addTo(map);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:16,attribution:'Tiles © Esri'}).addTo(map);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:16,opacity:0.9}).addTo(map);
 map.createPane('heat');const hp=map.getPane('heat');hp.style.zIndex=350;hp.style.pointerEvents='none';
 map.createPane('zones');map.getPane('zones').style.zIndex=360;
 const M2=1609.34;
