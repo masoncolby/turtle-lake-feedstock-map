@@ -51,6 +51,18 @@
   .leaflet-popup-content{font-size:12px;line-height:1.4}
   .leaflet-tooltip.zt{font-size:11.5px;line-height:1.5;max-width:240px;padding:7px 9px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.18)}
   #detailBody .row{padding:2px 0;border-bottom:1px solid #f0f4f1}
+  .method{margin-top:14px;background:#fff;border:1px solid #dbe6de;border-radius:12px;padding:0 16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .method>summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--dgreen);padding:13px 0;list-style:none;display:flex;align-items:center;gap:8px}
+  .method>summary::-webkit-details-marker{display:none}
+  .method>summary::before{content:'▸';transition:transform .15s;display:inline-block}
+  .method[open]>summary::before{transform:rotate(90deg)}
+  .mbody{font-size:12px;line-height:1.55;color:#28352d;padding:0 0 15px;max-width:900px}
+  .mbody h4{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--dgreen);margin:13px 0 4px}
+  .mbody ul{margin:4px 0;padding-left:18px}.mbody li{margin:3px 0}
+  .mbody b{color:#12261b}
+  .conf{display:inline-block;font-weight:700;border-radius:10px;padding:1px 8px;font-size:11px}
+  .cmod{background:#FFF3D6;color:#8a5a00}.clow{background:#FCE4DC;color:#9c3418}
+  .src{font-size:11px;color:#5b6b60;border-top:1px solid #eef3ef;margin-top:12px;padding-top:9px}
 </style>
 
 <div class="wrap">
@@ -84,7 +96,7 @@
 
   <div class="layout">
     <div class="mapcol"><div id="map"></div>
-      <div class="foot">Tonnage = stores × ~150 t/yr organic waste (EPA/ReFED average; per-store range ~90–225). Of that, ~35–45% is the landfill/compost stream immediately divertible to AD; packaged product is added DePak upside. Super One = real scraped addresses; other brands placed at store cities.</div>
+      <div class="foot">Tonnage = stores × ~150 t/yr organic waste (EPA/ReFED average; per-store range ~90–225) — see "method &amp; confidence" below for the full basis. Super One = real scraped addresses; other brands placed at store cities.</div>
     </div>
     <div class="panel">
       <div class="box">
@@ -102,6 +114,32 @@
       </div>
     </div>
   </div>
+
+  <details class="method">
+    <summary>How the organics estimates were built — method &amp; confidence</summary>
+    <div class="mbody">
+      <p><b>The model.</b> Every store is set at <b>~150 tons/yr of organic waste generated</b>. A zone's tonnage = (stores in that zone) × 150 t/yr; the total is all stores × 150. The tons/lbs and week/month/year toggles are simple unit conversions on that one figure (1 short ton = 2,000 lb; ÷12 monthly, ÷52 weekly).</p>
+
+      <h4>Where the 150 t/store/yr comes from</h4>
+      <ul>
+        <li><b>U.S. EPA, 2019 Wasted Food Report:</b> U.S. food retail generated ~13M tons of wasted food, of which ~9M tons came from supermarkets &amp; supercenters. Spread across the ~40,000 U.S. supermarkets/supercenters, that's ≈ <b>225 tons/store/yr</b>.</li>
+        <li><b>ReFED &amp; USDA ERS:</b> grocery-retail surplus/waste is put at ~5–6M tons/yr; across the ~62,000 U.S. grocery stores that's ≈ <b>80–95 tons/store/yr</b>.</li>
+        <li>We use <b>150 t/store/yr</b> — near the midpoint of that ~90–225 range, leaning conservative.</li>
+      </ul>
+
+      <h4>Generated vs. what's actually divertible</h4>
+      <p>Not all generated waste is haulable feedstock. Per EPA's retail breakdown, ~41% of surplus is donated and ~11% goes to animal feed. The <b>landfill + compost stream (~35%)</b> is the portion that currently needs a disposal outlet and is immediately divertible to AD. Packaged/expired product that composters won't accept is <b>additional volume only a depackaging line (Turtle Lake) can capture</b> — upside not included in the base figure.</p>
+
+      <h4>How confident we are</h4>
+      <ul>
+        <li><span class="conf cmod">Whole-shed total: moderate</span> &nbsp;The total is anchored to national EPA/ReFED data and store counts. Because it rests on a single per-store average, the true total most likely falls within about <b>±40% — roughly 20,000–51,000 t/yr</b> around the ~34,000 t/yr midpoint.</li>
+        <li><span class="conf clow">Per store / per cluster: lower</span> &nbsp;One average is applied to every store, so it can't distinguish a supercenter or a large prepared-foods store (Lunds, Kowalski's) from a small-town grocer. And for every brand <b>except Super One</b>, the store counts and locations are themselves estimates placed at town level.</li>
+        <li><b>Deliberately conservative — not counted:</b> distribution centers and central commissaries (Coborn's St. Cloud, UNFI/Cub Hopkins, Kowalski's Shoreview, Super One Duluth) concentrate large volumes <i>on top of</i> the store totals.</li>
+        <li><b>To tighten it:</b> weight by store square footage, confirm exact store lists, and swap the benchmark for actual hauler manifests or waste audits where available.</li>
+      </ul>
+      <div class="src"><b>Sources:</b> U.S. EPA, 2019 Wasted Food Report (2023); ReFED Insights Engine; USDA Economic Research Service. Figures are planning-grade estimates, not audited tonnage.</div>
+    </div>
+  </details>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -259,7 +297,7 @@ function wAbbr(annualTons){return abbrNum(wVal(annualTons))+' '+uSuf();}
 
 // ---- map ----
 const map=L.map('map',{scrollWheelZoom:true}).setView(CENTER,7);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'© OpenStreetMap © CARTO'}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20,attribution:'© OpenStreetMap, © CARTO'}).addTo(map);
 map.createPane('heat');const hp=map.getPane('heat');hp.style.zIndex=350;hp.style.pointerEvents='none';
 map.createPane('zones');map.getPane('zones').style.zIndex=360;
 const M2=1609.34;
