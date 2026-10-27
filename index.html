@@ -67,17 +67,17 @@
 
 <div class="wrap">
   <h1>Feedstock Shed for Turtle Lake AD — Stores, Tonnage & the Denali-Outlet Gap</h1>
-  <p class="sub">Every dot is a grocery store (colored by brand). Zones are the nine density clusters, <b>ranked by store count</b> and <b>selectable</b>. Each zone shows estimated organic tonnage and its distance to Turtle Lake vs. Denali's current metro outlet (SMSC / Dakota Prairie Composting).</p>
+  <p class="sub">Every dot is a grocery store (colored by brand). Colored lines are illustrative <b>collection routes</b> from Turtle Lake through each cluster's stops (nearest-neighbor order; round-trip road miles). Routes rebuild live as you filter brands or New/Denali. Click a route to isolate it.</p>
   <div id="err"></div>
 
   <div class="kpi" id="kpi"></div>
   <div class="controls">
-    <span class="lab">Heat:</span>
-    <button class="btn on" id="heat-stores">Store density</button>
-    <button class="btn" id="heat-pop">Population</button>
-    <button class="btn" id="heat-off">Off</button>
-    <span class="lab" style="margin-left:8px">Zones:</span>
+    <span class="lab">Routes:</span>
     <button class="btn on" id="b-zones">Show</button>
+    <span class="lab" style="margin-left:8px">Heat:</span>
+    <button class="btn" id="heat-stores">Store density</button>
+    <button class="btn" id="heat-pop">Population</button>
+    <button class="btn on" id="heat-off">Off</button>
     <button class="btn on" id="b-rings">Rings</button>
     <span class="lab" style="margin-left:8px">Show:</span>
     <button class="btn on" id="cat-all">All</button>
@@ -100,9 +100,9 @@
     </div>
     <div class="panel">
       <div class="box">
-        <h2>Route clusters — ranked by store density</h2>
+        <h2>Routes — ranked by store density (stops · round-trip mi)</h2>
         <div id="clusters"></div>
-        <div class="foot">Click a row to isolate that zone (click again to reset). Hover a zone on the map for its brand mix, tonnage, and Turtle&nbsp;Lake-vs-SMSC distance.</div>
+        <div class="foot">Click a row to isolate that route (click again to reset). Hover a route on the map for its stops, miles, brand mix, tonnage, and Turtle&nbsp;Lake-vs-SMSC distance.</div>
       </div>
       <div class="box" id="detailBox" style="display:none">
         <h2 id="detailTitle">Zone detail</h2>
@@ -270,18 +270,22 @@ order.forEach(k=>{
 const ranked=order.slice().sort((a,b)=>cldata[b].n-cldata[a].n);
 ranked.forEach((k,i)=>cldata[k].rank=i+1);
 
-function hull(latlngs){
-  if(latlngs.length<3) return latlngs.slice();
-  let p=latlngs.map(x=>[x[1],x[0]]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
-  const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
-  const lo=[];for(const q of p){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],q)<=0)lo.pop();lo.push(q);}
-  const up=[];for(let i=p.length-1;i>=0;i--){const q=p[i];while(up.length>=2&&cr(up[up.length-2],up[up.length-1],q)<=0)up.pop();up.push(q);}
-  lo.pop();up.pop();return lo.concat(up).map(x=>[x[1],x[0]]);
-}
-order.forEach(k=>{const d=cldata[k];
-  const h=hull(d.pts.map(s=>[s.lat,s.lon]));
-  d.hull=h.map(pt=>[d.cLat+(pt[0]-d.cLat)*1.14,d.cLon+(pt[1]-d.cLon)*1.14]);
-  d.maxR=Math.max.apply(null,d.pts.map(s=>hav(d.cLat,d.cLon,s.lat,s.lon)));});
+const ROADF=1.25; // straight-line -> road-mile factor
+function nnOrder(pts){ // nearest-neighbor sequence starting from the facility
+  const rem=pts.slice(),ord=[];let cur=CENTER;
+  while(rem.length){let bi=0,bd=Infinity;
+    for(let i=0;i<rem.length;i++){const dd=hav(cur[0],cur[1],rem[i].lat,rem[i].lon);if(dd<bd){bd=dd;bi=i;}}
+    cur=[rem[bi].lat,rem[bi].lon];ord.push(rem.splice(bi,1)[0]);}
+  return ord;}
+function routeMiles(ord){let m=0,prev=CENTER;ord.forEach(s=>{m+=hav(prev[0],prev[1],s.lat,s.lon);prev=[s.lat,s.lon];});
+  m+=hav(prev[0],prev[1],CENTER[0],CENTER[1]);return m*ROADF;}
+function brandLinesOf(list){const bc={};list.forEach(s=>bc[s.brand]=(bc[s.brand]||0)+1);
+  return Object.keys(bc).map(b=>[BRNAME[b],bc[b],BRCOL[b]]).sort((a,b)=>b[1]-a[1]);}
+order.forEach(k=>{cldata[k].liveStops=cldata[k].n;cldata[k].liveOrd=cldata[k].pts.slice();cldata[k].liveMiles=0;});
+function computeRoutes(){order.forEach(k=>{const d=cldata[k];
+  const vis=d.pts.filter(s=>vto[s.brand]&&catMatch(s.brand));
+  d.liveStops=vis.length;
+  if(vis.length){d.liveOrd=nnOrder(vis);d.liveMiles=routeMiles(d.liveOrd);}else{d.liveOrd=[];d.liveMiles=0;}});}
 const totTons=order.reduce((a,k)=>a+cldata[k].tons,0);
 const clCloserTL=order.filter(k=>cldata[k].dTL<cldata[k].dSM).length;
 const newStores=inR.filter(s=>!isDen(s.brand)).length;
@@ -331,23 +335,23 @@ function brandLines(k){const d=cldata[k];
 function distLine(k){const d=cldata[k];const adv=d.dSM-d.dTL;
   return 'Turtle Lake: <b>'+d.dTL.toFixed(0)+' mi</b> · SMSC: <b>'+d.dSM.toFixed(0)+' mi</b>'+
     (adv>3?' <span style="color:#1F7A3D">(TL '+adv.toFixed(0)+' mi closer)</span>':adv<-3?' <span style="color:#B23A1E">(SMSC '+(-adv).toFixed(0)+' mi closer)</span>':'');}
-function zoneTip(k){const d=cldata[k];
-  return '<div style="font-weight:700;margin-bottom:3px;color:#12261b">#'+d.rank+' '+CLNAME[k]+' — '+d.n+' stores</div>'+
-    brandLines(k).map(x=>'<div><span style="color:'+x[2]+'">●</span> '+x[0]+': <b>'+x[1]+'</b></div>').join('')+
-    '<div style="margin-top:4px;color:#B26A00;font-weight:700">≈ '+wFull(d.tons)+' organics</div>'+
-    '<div style="margin-top:2px">'+distLine(k)+'</div>';}
-function drawZones(){
+function routeTip(k){const d=cldata[k];const tons=d.liveStops*T_PER_STORE;
+  return '<div style="font-weight:700;margin-bottom:3px;color:#12261b">#'+d.rank+' '+CLNAME[k]+' route</div>'+
+    '<div><b>'+d.liveStops+' stops</b> · round-trip <b>~'+Math.round(d.liveMiles)+' mi</b> from Turtle Lake</div>'+
+    '<div style="color:#B26A00;font-weight:700;margin-top:2px">≈ '+wFull(tons)+' organics</div>'+
+    '<div style="margin-top:3px">'+brandLinesOf(d.liveOrd).map(x=>'<span style="color:'+x[2]+'">●</span> '+x[0]+': <b>'+x[1]+'</b>').join(' &nbsp; ')+'</div>'+
+    '<div style="margin-top:3px">'+distLine(k)+'</div>';}
+function drawRoutes(){
   zoneLayer.clearLayers(); if(!showZones)return;
   order.forEach(k=>{const d=cldata[k], foc=(focus===k), col=CLCOL[k];
-    const style={color:col,weight:foc?3.5:1.8,fillColor:col,fillOpacity:foc?.16:.08,pane:'zones'};
-    let shape;
-    if(d.pts.length>=3) shape=L.polygon(d.hull,style);
-    else shape=L.circle([d.cLat,d.cLon],Object.assign({radius:Math.max(d.maxR,6)*M2},style));
-    shape.on('click',()=>toggleFocus(k));
-    shape.bindTooltip(zoneTip(k),{sticky:true,direction:'top',opacity:0.97,className:'zt'});
-    zoneLayer.addLayer(shape);
-    L.marker([d.cLat,d.cLon],{interactive:false,pane:'zones',icon:L.divIcon({className:'',iconSize:[150,16],iconAnchor:[75,8],
-      html:'<div style="font:700 10px sans-serif;color:'+col+';background:rgba(255,255,255,.74);padding:0 4px;border-radius:4px;white-space:nowrap;text-align:center">#'+d.rank+' '+CLNAME[k]+' · ~'+wAbbr(d.tons)+'</div>'})}).addTo(zoneLayer);
+    if(focus&&k!==focus) return; if(!d.liveStops) return;
+    const ll=[CENTER].concat(d.liveOrd.map(s=>[s.lat,s.lon])).concat([CENTER]);
+    const pl=L.polyline(ll,{color:col,weight:foc?4:2.6,opacity:foc?.95:.6,pane:'zones',lineJoin:'round'});
+    pl.on('click',()=>toggleFocus(k));
+    pl.bindTooltip(routeTip(k),{sticky:true,direction:'top',opacity:0.97,className:'zt'});
+    zoneLayer.addLayer(pl);
+    L.marker([d.cLat,d.cLon],{interactive:false,pane:'zones',icon:L.divIcon({className:'',iconSize:[190,16],iconAnchor:[95,8],
+      html:'<div style="font:700 10px sans-serif;color:'+col+';background:rgba(255,255,255,.8);padding:0 4px;border-radius:4px;white-space:nowrap;text-align:center">#'+d.rank+' '+CLNAME[k]+' · '+d.liveStops+' stops · ~'+Math.round(d.liveMiles)+' mi</div>'})}).addTo(zoneLayer);
   });
 }
 
@@ -381,7 +385,7 @@ map.on('zoomstart',()=>heatCanvas.style.visibility='hidden');
 map.on('zoomend',()=>heatCanvas.style.visibility='visible');
 
 // state
-let heatMode='stores',showRings=true,showZones=true,focus=null,catFilter='all',unit='tons',period='year';
+let heatMode='off',showRings=true,showZones=true,focus=null,catFilter='all',unit='tons',period='year';
 const vto={};BR.forEach(b=>vto[b[0]]=true);
 let markerLayer=L.layerGroup().addTo(map);
 function drawStores(){
@@ -406,7 +410,7 @@ function paintClusters(){
     return '<div class="crow'+(focus===k?' focus':'')+'" data-cl="'+k+'">'+
       '<span class="rk">'+d.rank+'</span><span class="sw" style="background:'+CLCOL[k]+'"></span>'+
       '<span class="nm">'+CLNAME[k]+'<br><small>'+CLDIR[k]+'</small></span>'+
-      '<span class="ct">'+d.n+'</span><span class="tn">~'+abbrNum(wVal(d.tons))+' '+(unit==='lbs'?'lb':'t')+'</span></div>';}).join('');
+      '<span class="ct">'+d.liveStops+'</span><span class="tn">~'+Math.round(d.liveMiles)+' mi</span></div>';}).join('');
   document.querySelectorAll('.crow').forEach(row=>row.onclick=()=>toggleFocus(row.dataset.cl));
 }
 function paintLegend(){
@@ -428,24 +432,30 @@ function paintDetail(){
   const box=document.getElementById('detailBox');
   if(!focus){box.style.display='none';return;}
   const d=cldata[focus];
-  const dn=d.pts.filter(s=>isDen(s.brand)).length, nw=d.n-dn;
-  document.getElementById('detailTitle').textContent='#'+d.rank+'  '+CLNAME[focus]+'  —  '+d.n+' stores';
-  let html='<div style="font-size:12px;margin-bottom:6px"><b style="color:#B26A00">≈ '+wFull(d.tons)+'</b> est. organics · '+distLine(focus)+'</div>';
+  const vis=d.liveOrd;
+  const dn=vis.filter(s=>isDen(s.brand)).length, nw=vis.length-dn;
+  document.getElementById('detailTitle').textContent='#'+d.rank+'  '+CLNAME[focus]+'  —  '+vis.length+' stops';
+  let html='<div style="font-size:12px;margin-bottom:6px"><b>Route:</b> '+vis.length+' stops · round-trip <b>~'+Math.round(d.liveMiles)+' mi</b> from Turtle Lake · <b style="color:#B26A00">≈ '+wFull(vis.length*T_PER_STORE)+'</b></div>';
+  html+='<div style="font-size:11.5px;margin-bottom:8px">'+distLine(focus)+'</div>';
   html+='<div style="font-size:11.5px;margin-bottom:8px;padding:5px 7px;background:#f4f8f5;border-radius:7px">'+
-    '<span style="color:#1F7A3D;font-weight:700">● New opp:</span> '+nw+' stores (~'+wAbbr(nw*T_PER_STORE)+') &nbsp;·&nbsp; '+
-    '<span style="color:#7A3E12;font-weight:700">◯ Denali:</span> '+dn+' stores (~'+wAbbr(dn*T_PER_STORE)+')</div>';
+    '<span style="color:#1F7A3D;font-weight:700">● New opp:</span> '+nw+' stops (~'+wAbbr(nw*T_PER_STORE)+') &nbsp;·&nbsp; '+
+    '<span style="color:#7A3E12;font-weight:700">◯ Denali:</span> '+dn+' stops (~'+wAbbr(dn*T_PER_STORE)+')</div>';
   html+='<div style="display:flex;flex-wrap:wrap;gap:3px 12px;margin-bottom:8px">'+
-    brandLines(focus).map(x=>'<span style="font-size:12px"><span style="color:'+x[2]+'">●</span> <b>'+x[0]+'</b>: '+x[1]+'</span>').join('')+'</div>';
-  const list=d.pts.slice().sort((a,b)=>BRNAME[a.brand].localeCompare(BRNAME[b.brand])||a.city.localeCompare(b.city));
+    brandLinesOf(vis).map(x=>'<span style="font-size:12px"><span style="color:'+x[2]+'">●</span> <b>'+x[0]+'</b>: '+x[1]+'</span>').join('')+'</div>';
+  const list=vis.slice().sort((a,b)=>BRNAME[a.brand].localeCompare(BRNAME[b.brand])||a.city.localeCompare(b.city));
   html+='<div style="max-height:220px;overflow:auto;font-size:11.5px">'+
     list.map(s=>'<div class="row"><span style="color:'+BRCOL[s.brand]+'">●</span> <b>'+BRNAME[s.brand]+'</b> — '+s.city+(s.real?' · '+s.addr:'')+'</div>').join('')+'</div>';
   document.getElementById('detailBody').innerHTML=html; box.style.display='';
 }
 function paintKpi(){
-  const shown=inR.filter(s=>vto[s.brand]&&(!focus||s.cl===focus)&&catMatch(s.brand)).length;
+  const vis=focus?[focus]:order;
+  const shown=vis.reduce((a,k)=>a+cldata[k].liveStops,0);
+  const miles=vis.reduce((a,k)=>a+cldata[k].liveMiles,0);
+  const shownTons=shown*T_PER_STORE;
   document.getElementById('kpi').innerHTML=
-   '<div class="k"><div class="v">'+shown+'</div><div class="l">stores shown</div></div>'+
-   '<div class="k t"><div class="v">~'+abbrNum(wVal(totTons))+'</div><div class="l">total est. '+uSuf()+'</div></div>'+
+   '<div class="k"><div class="v">'+shown+'</div><div class="l">stops shown</div></div>'+
+   '<div class="k"><div class="v">~'+Math.round(miles).toLocaleString()+'</div><div class="l">total route miles (round-trip)</div></div>'+
+   '<div class="k t"><div class="v">~'+abbrNum(wVal(shownTons))+'</div><div class="l">est. '+uSuf()+' shown</div></div>'+
    '<div class="k n"><div class="v">~'+abbrNum(wVal(newTons))+'</div><div class="l">new-opportunity '+uSuf()+'</div></div>'+
    '<div class="k g"><div class="v">'+clCloserTL+'/9</div><div class="l">zones closer to Turtle Lake than SMSC</div></div>';
 }
@@ -458,13 +468,13 @@ function toggleFocus(k){
   } else map.fitBounds(FULLB,{padding:[8,8]});
   refresh();
 }
-function refresh(){drawStores();drawZones();drawHeat();paintClusters();paintLegend();paintKpi();paintDetail();}
+function refresh(){computeRoutes();drawStores();drawRoutes();drawHeat();paintClusters();paintLegend();paintKpi();paintDetail();}
 
 function setHeat(mode,btn){heatMode=mode;['heat-stores','heat-pop','heat-off'].forEach(id=>document.getElementById(id).classList.remove('on'));btn.classList.add('on');drawHeat();}
 document.getElementById('heat-stores').onclick=function(){setHeat('stores',this);};
 document.getElementById('heat-pop').onclick=function(){setHeat('pop',this);};
 document.getElementById('heat-off').onclick=function(){setHeat('off',this);};
-document.getElementById('b-zones').onclick=function(){showZones=!showZones;this.classList.toggle('on',showZones);drawZones();};
+document.getElementById('b-zones').onclick=function(){showZones=!showZones;this.classList.toggle('on',showZones);drawRoutes();};
 function setCat(c,btn){catFilter=c;['cat-all','cat-new','cat-den'].forEach(id=>document.getElementById(id).classList.remove('on'));btn.classList.add('on');refresh();}
 document.getElementById('cat-all').onclick=function(){setCat('all',this);};
 document.getElementById('cat-new').onclick=function(){setCat('new',this);};
